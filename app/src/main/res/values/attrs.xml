@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="RandomLayout">
+        <attr name="child_height" format="dimension"/>
+        <attr name="child_width" format="dimension"/>
+        <attr name="border_padding" format="dimension"/>
+        <attr name="border_width" format="dimension"/>
+        <attr name="border_color" format="color"/>
+
+    </declare-styleable>
+</resources>
