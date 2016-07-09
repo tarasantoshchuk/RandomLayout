@@ -1,5 +1,6 @@
 package com.tarasantoshchuk.randomlayout;
 
+import android.animation.Animator;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -7,15 +8,19 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
-import android.graphics.Rect;
+import android.graphics.PointF;
+import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.util.TypedValue;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 public class RandomLayout extends ViewGroup {
     private static final int DEFAULT_CHILD_HEIGHT = 70;
@@ -25,6 +30,8 @@ public class RandomLayout extends ViewGroup {
     private static final int DEFAULT_BORDER_WIDTH = 2;
     private static final int DEFAULT_BORDER_COLOR = Color.BLACK;
 
+    private final static int ANIMATION_DURATION = (int) TimeUnit.MILLISECONDS.convert(1, TimeUnit.SECONDS);
+
     private int mChildHeight;
     private int mChildWidth;
 
@@ -32,11 +39,32 @@ public class RandomLayout extends ViewGroup {
     private int mBorderWidth;
     private int mBorderColor;
 
+    private GestureDetector mDetector;
+
     private final Paint mShadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Random mRandom = new Random();
-    private final Rect mBorderRect = new Rect();
+    private final RectF mBorderRect = new RectF();
 
     private List<Point> mChildrenTopLeftCorners;
+
+    private Animator.AnimatorListener mAnimationListener = new Animator.AnimatorListener() {
+        @Override
+        public void onAnimationStart(Animator animator) {
+        }
+
+        @Override
+        public void onAnimationEnd(Animator animator) {
+            invalidate();
+        }
+
+        @Override
+        public void onAnimationCancel(Animator animator) {
+        }
+
+        @Override
+        public void onAnimationRepeat(Animator animator) {
+        }
+    };
 
     public RandomLayout(Context context) {
         this(context, null);
@@ -54,6 +82,32 @@ public class RandomLayout extends ViewGroup {
     private void init(Context context, AttributeSet attrs) {
         setWillNotDraw(false);
 
+        mDetector = new GestureDetector(context, new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onDown(MotionEvent e) {
+                return true;
+            }
+
+            @Override
+            public boolean onSingleTapUp(MotionEvent e) {
+                int childToAnimate = getChildCount();
+
+                View view = getChildAt(mRandom.nextInt(childToAnimate));
+
+                PointF finalLocation = getNearestAvailableLocation(e.getX(), e.getY(), childToAnimate);
+
+                view
+                        .animate()
+                        .x(finalLocation.x)
+                        .y(finalLocation.y)
+                        .setDuration(ANIMATION_DURATION)
+                        .setListener(mAnimationListener)
+                        .start();
+
+                return true;
+            }
+        });
+
         mChildrenTopLeftCorners = new ArrayList<>();
 
         TypedArray attributes = context.obtainStyledAttributes(attrs, R.styleable.RandomLayout);
@@ -67,6 +121,11 @@ public class RandomLayout extends ViewGroup {
         mBorderColor = attributes.getColor(R.styleable.RandomLayout_border_color, DEFAULT_BORDER_COLOR);
 
         attributes.recycle();
+    }
+
+    private PointF getNearestAvailableLocation(float x, float y, int childToAnimate) {
+        //TODO: implement along with cleverer random
+        return new PointF(x, y);
     }
 
     private int dpToPx(int dpValue) {
@@ -101,6 +160,11 @@ public class RandomLayout extends ViewGroup {
         }
 
         setMeasuredDimension(width, height);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        return mDetector.onTouchEvent(event);
     }
 
     @SuppressLint("DrawAllocation")
@@ -172,10 +236,10 @@ public class RandomLayout extends ViewGroup {
         for(int i = 0; i < getChildCount(); i++) {
             View view = getChildAt(i);
 
-            mBorderRect.top = view.getTop() - mBorderPadding;
-            mBorderRect.left = view.getLeft() - mBorderPadding;
-            mBorderRect.bottom = view.getBottom() + mBorderPadding;
-            mBorderRect.right = view.getRight() + mBorderPadding;
+            mBorderRect.top = view.getY() - mBorderPadding;
+            mBorderRect.left = view.getX() - mBorderPadding;
+            mBorderRect.bottom = view.getY() + view.getHeight() + mBorderPadding;
+            mBorderRect.right = view.getX() + view.getWidth() + mBorderPadding;
 
             canvas.drawRect(mBorderRect, mShadowPaint);
         }
